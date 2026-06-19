@@ -1,0 +1,17 @@
+baseURL = "https://dere3046.github.io/"
+title = "dere3046"
+theme = "PaperMod"
+paginate = 5
+
+[params]
+  description = "reverse engineering, kernel mods, android internals"
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[menu]
+  main = [
+    {identifier = "posts", name = "posts", url = "/posts", weight = 1},
+    {identifier = "tags", name = "tags", url = "/tags", weight = 2},
+  ]
