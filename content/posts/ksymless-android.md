@@ -64,14 +64,10 @@ target address of the instruction sequence after the ADRP+ADD pair.
 
 ### 3. BL chain
 
-trace the BL (branch-and-link) instruction chain recursively from
-`sprint_symbol`. each BL instruction at offset `i` targets
-`fn + i*4 + imm26*4`. collect all visited functions (37 on this device).
-
 ```c
 int follow_bl(unsigned long fn, unsigned long *visited, int *nv_cnt, int depth)
 {
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 512; i++) {
         unsigned int insn = bl_buf[i];
         if ((insn & 0xFC000000) != 0x94000000) continue;
         long imm26 = insn & 0x3FFFFFF;
@@ -86,14 +82,10 @@ int follow_bl(unsigned long fn, unsigned long *visited, int *nv_cnt, int depth)
 
 ### 4. ADRP pages
 
-for each visited function, scan 1024 instructions for ADRP instructions.
-extract the target page: `(pc & ~0xFFF) + (imm << 12)`. collect
-74 unique pages across all functions.
-
 ```c
 int collect_adrp_pages(unsigned long fn, unsigned long *pages, int max)
 {
-    for (int i = 0; i < 256 && n < max; i++) {
+    for (int i = 0; i < 1024 && n < max; i++) {
         unsigned int insn = buf[i];
         if ((insn & 0x9F000000) != 0x90000000) continue;
         unsigned long imm = ((insn >> 5) & 0x7FFFF) << 2 | ((insn >> 29) & 3);
