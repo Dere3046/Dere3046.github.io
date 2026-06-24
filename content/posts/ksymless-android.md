@@ -23,7 +23,7 @@ rebuilds the full kallsyms lookup chain in 8 steps.
 
 ### 1. anchor
 
-`&sprint_symbol` is a function pointer — the linker fills in the real
+`&sprint_symbol` is a function pointer. the linker fills in the real
 address via `R_AARCH64_ABS64` relocation. mask off the page offset to
 get the kernel base.
 
@@ -123,12 +123,12 @@ for (int pi = 0; pi < total_pages && !klbase_addr; pi++) {
 
 ### 6. find kloffs
 
-`kallsyms_offsets[0]` is always 0 — the first symbol's address equals
+`kallsyms_offsets[0]` is always 0. the first symbol's address equals
 `kallsyms_relative_base`. scan every 4-byte position in every ADRP page
 for a u32 value of 0.
 
-verify each candidate by passing the first 4 offsets through `sprint_symbol`
-— the kernel's own resolver. if any returns raw hex (`0x...`) instead of a
+verify each candidate by passing the first 4 offsets through `sprint_symbol`.
+the kernel's own resolver. if any returns raw hex (`0x...`) instead of a
 symbol name, the candidate is rejected. `sprint_symbol` always returns the
 correct answer because it uses the kernel's internal lookup path.
 
