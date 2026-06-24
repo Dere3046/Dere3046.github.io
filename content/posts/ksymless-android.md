@@ -86,7 +86,7 @@ int follow_bl(unsigned long fn, unsigned long *visited, int *nv_cnt, int depth)
 
 ### 4. ADRP pages
 
-for each visited function, scan 256 instructions for ADRP instructions.
+for each visited function, scan 1024 instructions for ADRP instructions.
 extract the target page: `(pc & ~0xFFF) + (imm << 12)`. collect
 74 unique pages across all functions.
 
