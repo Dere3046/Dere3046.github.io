@@ -123,23 +123,40 @@ for (int pi = 0; pi < total_pages && !klbase_addr; pi++) {
 
 ### 6. find kloffs
 
-at every 4-byte-aligned position in every ADRP page, measure the length
-of consecutive sorted u32 values. the offset values in
-`kallsyms_offsets` are monotonically increasing — 126252 of them form
-the longest such sequence.
+`kallsyms_offsets[0]` is always 0 — the first symbol's address equals
+`kallsyms_relative_base`. scan every 4-byte position in every ADRP page
+for a u32 value of 0.
+
+verify each candidate by passing the first 4 offsets through `sprint_symbol`
+— the kernel's own resolver. if any returns raw hex (`0x...`) instead of a
+symbol name, the candidate is rejected. `sprint_symbol` always returns the
+correct answer because it uses the kernel's internal lookup path.
+
+walk the sorted u32 sequence from each verified candidate. pick the one
+with the longest run. the real `kallsyms_offsets` has `num_syms` entries
+(126252 on these devices), unmatched by any other `.rodata` region.
 
 ```c
-for (int off = 0; off < 0x1000; off += 4) {
-    int len = 0, prev = -1;
-    for (int i = 0; i < 500000; i++) {
-        unsigned int v;
-        safe_read(&v, (void *)(addr + i * 4), 4);
-        if ((int)v < prev) break;
-        prev = (int)v;
-        len++;
-    }
-    if (len > best_len) { best_len = len; kloffs_addr = addr; }
+// offsets[0] is always 0 (_text - relative_base)
+if (v != 0) continue;
+
+// sprint_symbol verify: first 4 offsets must resolve to real names
+for (int i = 0; i < 4 && ok; i++) {
+    sprint_symbol(name, klbase_val + read_u32(addr + i * 4));
+    if (name[0] == '0' && name[1] == 'x')
+        ok = 0;  // sprint_symbol returned raw hex = no symbol here
 }
+if (!ok) continue;
+
+// count consecutive sorted u32 entries, pick the longest
+int len = 0, prev = -1;
+for (int i = 0; i < 500000; i++) {
+    unsigned int v = read_u32(addr + i * 4);
+    if ((int)v < prev) break;
+    prev = (int)v;
+    len++;
+}
+if (len > best_len) { best_len = len; best_addr = addr; }
 ```
 
 ### 7. layout derivation
