@@ -23,7 +23,7 @@ rebuilds the full kallsyms lookup chain in 8 steps.
 
 ### 1. anchor
 
-`&sprint_symbol` is a function pointer. the linker fills in the real
+`&sprint_symbol` is a function pointer — the linker fills in the real
 address via `R_AARCH64_ABS64` relocation. mask off the page offset to
 get the kernel base.
 
@@ -64,10 +64,14 @@ target address of the instruction sequence after the ADRP+ADD pair.
 
 ### 3. BL chain
 
+trace the BL (branch-and-link) instruction chain recursively from
+`sprint_symbol`. each BL instruction at offset `i` targets
+`fn + i*4 + imm26*4`. collect all visited functions (37 on this device).
+
 ```c
 int follow_bl(unsigned long fn, unsigned long *visited, int *nv_cnt, int depth)
 {
-    for (int i = 0; i < 512; i++) {
+    for (int i = 0; i < 256; i++) {
         unsigned int insn = bl_buf[i];
         if ((insn & 0xFC000000) != 0x94000000) continue;
         long imm26 = insn & 0x3FFFFFF;
@@ -82,10 +86,14 @@ int follow_bl(unsigned long fn, unsigned long *visited, int *nv_cnt, int depth)
 
 ### 4. ADRP pages
 
+for each visited function, scan 256 instructions for ADRP instructions.
+extract the target page: `(pc & ~0xFFF) + (imm << 12)`. collect
+74 unique pages across all functions.
+
 ```c
 int collect_adrp_pages(unsigned long fn, unsigned long *pages, int max)
 {
-    for (int i = 0; i < 1024 && n < max; i++) {
+    for (int i = 0; i < 256 && n < max; i++) {
         unsigned int insn = buf[i];
         if ((insn & 0x9F000000) != 0x90000000) continue;
         unsigned long imm = ((insn >> 5) & 0x7FFFF) << 2 | ((insn >> 29) & 3);
@@ -115,12 +123,12 @@ for (int pi = 0; pi < total_pages && !klbase_addr; pi++) {
 
 ### 6. find kloffs
 
-`kallsyms_offsets[0]` is always 0. the first symbol's address equals
+`kallsyms_offsets[0]` is always 0 — the first symbol's address equals
 `kallsyms_relative_base`. scan every 4-byte position in every ADRP page
 for a u32 value of 0.
 
-verify each candidate by passing the first 4 offsets through `sprint_symbol`.
-the kernel's own resolver. if any returns raw hex (`0x...`) instead of a
+verify each candidate by passing the first 4 offsets through `sprint_symbol`
+— the kernel's own resolver. if any returns raw hex (`0x...`) instead of a
 symbol name, the candidate is rejected. `sprint_symbol` always returns the
 correct answer because it uses the kernel's internal lookup path.
 
